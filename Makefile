@@ -9,16 +9,26 @@ build:
 build-xinput:
 	cargo build --release --features xinput --no-default-features
 
-.PHONY: build-deb
-build-deb: build
-	cargo deb --no-build
-
 .PHONE: install
 install: build-deb
-	sudo dpkg -i $(DEB_BUILD_PATH)
+	cargo install
 
 .PHONY: install-dependencies
 install-dependencies:
 	sudo apt update && sudo apt install libudev-dev
-	cargo install cargo-deb
 
+.PHONY: install-dependencies-steam-deck
+install-dependencies-steam-deck:
+	@echo "disable readonly file system"
+	sudo steamos-readonly disable
+
+	@echo "Generate pgp keys for repos"
+	sudo pacman-key --init
+	sudo pacman-key --populate archlinux
+	sudo pacman-key --populate holo
+
+	@echo "Install build essentials and tooling"
+	sudo pacman --sync --noconfirm base-devel glibc linux-api-headers
+
+	@echo "re-enable read only"
+	sudo steamos-readonly enable
