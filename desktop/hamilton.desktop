@@ -2,3 +2,4 @@
 Name=Hamilton Remote
 Exec=/home/deck/.cargo/bin/deck-robot-remote
 Type=Application
+Terminal=true
