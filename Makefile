@@ -32,3 +32,10 @@ install-dependencies-steam-deck:
 
 	@echo "re-enable read only"
 	sudo steamos-readonly enable
+
+
+.PHONY: install-desktop
+install-desktop:
+	cargo install --path .
+	cp desktop/hamilton.desktop ~/.local/share/applications/
+	ln -sf ~/.local/share/applications/hamilton.desktop ~/Desktop/hamilton.desktop
