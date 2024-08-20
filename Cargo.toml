@@ -1,0 +1,58 @@
+[package]
+authors = ["David Weis <davidmichaelweis@gmail.com>"]
+description = "Publish gamepad messages over zenoh"
+edition = "2021"
+license = "MIT OR APACHE"
+name = "zenoh-gamepad"
+publish = false
+readme = "README.md"
+repository = "https://github.com/dmweis/zenoh-gamepad"
+version = "0.2.0"
+
+[package.metadata.deb]
+assets = [
+  [
+    "target/release/zenoh-gamepad",
+    "/usr/bin/",
+    "755",
+  ],
+]
+maintainer = "David Weis <dweis7@gmail.com>"
+maintainer-scripts = "debian/"
+
+[package.metadata.deb.systemd-units]
+
+
+[dependencies]
+anyhow = {version = "1.0", features = ["backtrace"]}
+chrono = {version = "0.4", features = ["serde"]}
+clap = {version = "4", features = ["derive"]}
+thiserror = "1.0"
+tokio = {version = "1", features = ["full"]}
+ctrlc = "3.4.4"
+
+# logging
+tracing = {version = "0.1", features = ["log"]}
+tracing-subscriber = {version = "0.3", features = [
+  "registry",
+  "env-filter",
+  "json",
+]}
+
+# serialization
+schemars = {version = "0.8.12", features = ["chrono"]}
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+
+# zenoh
+zenoh = "0.11.0"
+zenoh-config = "0.11.0"
+
+
+# Windows xinput
+[target.'cfg(windows)'.dependencies]
+gilrs = {version = "0.10", features = ["serde-serialize", "xinput"], default-features = false}
+
+# Linux wgi
+[target.'cfg(not(windows))'.dependencies]
+gilrs = {version = "0.10", features = ["serde-serialize", "wgi"], default-features = false}
