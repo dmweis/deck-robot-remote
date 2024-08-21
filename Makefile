@@ -28,7 +28,7 @@ install-dependencies-steam-deck:
 	sudo pacman-key --populate holo
 
 	@echo "Install build essentials and tooling"
-	sudo pacman --sync --noconfirm base-devel glibc linux-api-headers
+	sudo pacman --sync --noconfirm base-devel glibc linux-api-headers cmake
 
 	@echo "re-enable read only"
 	sudo steamos-readonly enable
