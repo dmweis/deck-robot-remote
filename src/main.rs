@@ -8,24 +8,13 @@ use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use error::ErrorWrapper;
 use gamepad::{start_gamepad_reader, start_schema_queryable};
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
 use tailscale::TailscaleStatus;
 
-use gilrs::GilrsBuilder;
 use schemars::schema_for;
-use thiserror::Error;
 use tracing::*;
 use zenoh::{config::Config, prelude::r#async::*};
 
-use crate::messages::{Button, InputMessage};
+use crate::messages::InputMessage;
 
 const ZENOH_TCP_DISCOVERY_PORT: u16 = 7436;
 

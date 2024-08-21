@@ -1,20 +1,9 @@
-use anyhow::Context;
-use clap::Parser;
-use std::{
-    collections::HashMap,
-    str::FromStr,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
 
 use gilrs::GilrsBuilder;
 use schemars::schema_for;
-use thiserror::Error;
 use tracing::*;
-use zenoh::{config::Config, prelude::r#async::*};
+use zenoh::prelude::r#async::*;
 
 use crate::{
     error::ErrorWrapper,
