@@ -70,7 +70,7 @@ struct Args {
     foxglove_layout_id: Option<String>,
 
     /// Open browser
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "true")]
     browser: bool,
 }
 
@@ -127,7 +127,10 @@ async fn main() -> anyhow::Result<()> {
     );
 
     info!("Foxglove link {foxglove_link}");
-    open::that(foxglove_link)?;
+
+    if args.browser {
+        open::that(foxglove_link)?;
+    }
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {}
