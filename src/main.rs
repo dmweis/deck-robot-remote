@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use error::ErrorWrapper;
-use foxglove_server::{start_foxglove_bridge, Configuration};
+use foxglove_server::{create_foxglove_url, start_foxglove_bridge, Configuration};
 use gamepad::{start_gamepad_reader, start_schema_queryable};
 use tailscale::TailscaleStatus;
 
@@ -161,6 +161,8 @@ async fn main() -> anyhow::Result<()> {
     let config: Configuration = serde_yaml::from_str(config)?;
 
     start_foxglove_bridge(config, host, zenoh_session.clone()).await?;
+
+    info!("Open foxglove with {}", create_foxglove_url());
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {}

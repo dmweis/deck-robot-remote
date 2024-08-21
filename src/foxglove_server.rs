@@ -13,6 +13,10 @@ use zenoh::prelude::r#async::*;
 
 use crate::{error::ErrorWrapper, DESCRIPTOR_POOL};
 
+pub fn create_foxglove_url() -> String {
+    String::from("https://app.foxglove.dev/david-weis/view?ds=foxglove-websocket&ds.url=ws://127.0.0.1:8765/&layoutId=ea22e72c-f654-4743-925a-7143a510d390")
+}
+
 fn json_schema_table() -> &'static HashMap<String, String> {
     static INSTANCE: OnceLock<HashMap<String, String>> = OnceLock::new();
     INSTANCE.get_or_init(|| {
