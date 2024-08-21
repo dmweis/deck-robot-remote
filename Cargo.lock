@@ -741,8 +741,8 @@ dependencies = [
 
 [[package]]
 name = "foxglove-ws"
-version = "0.2.3"
-source = "git+https://github.com/dmweis/foxglove-ws.git?branch=main#9dff70873285dab59b07621f3f7c09cdd84761d5"
+version = "0.3.0"
+source = "git+https://github.com/dmweis/foxglove-ws.git?branch=main#5bd7d0d402839243407d5a1eac49cb109177ad35"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1126,7 +1126,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.7",
  "tokio",
  "tower-service",
  "tracing",

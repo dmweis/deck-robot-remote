@@ -24,7 +24,7 @@ pub async fn start_foxglove_bridge(
     zenoh_session: Arc<Session>,
 ) -> anyhow::Result<()> {
     // start foxglove server
-    let server = foxglove_ws::FoxgloveWebSocket::new();
+    let server = foxglove_ws::FoxgloveWebSocket::new("steam-deck");
     tokio::spawn({
         let server = server.clone();
         async move { server.serve(host).await }
