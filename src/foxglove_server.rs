@@ -13,44 +13,13 @@ use zenoh::prelude::r#async::*;
 
 use crate::{error::ErrorWrapper, DESCRIPTOR_POOL};
 
-pub fn create_foxglove_url() -> String {
-    String::from("https://app.foxglove.dev/david-weis/view?ds=foxglove-websocket&ds.url=ws://127.0.0.1:8765/&layoutId=ea22e72c-f654-4743-925a-7143a510d390")
-}
-
-fn json_schema_table() -> &'static HashMap<String, String> {
-    static INSTANCE: OnceLock<HashMap<String, String>> = OnceLock::new();
-    INSTANCE.get_or_init(|| {
-        let mut m = HashMap::new();
-        m.insert(
-            "GENERIC_JSON_SCHEMA".to_owned(),
-            GENERIC_JSON_SCHEMA.to_owned(),
-        );
-        m.insert(
-            "IKEA_DIMMER_JSON_SCHEMA".to_owned(),
-            IKEA_DIMMER_JSON_SCHEMA.to_owned(),
-        );
-        m.insert(
-            "MOTION_SENSOR_JSON_SCHEMA".to_owned(),
-            MOTION_SENSOR_JSON_SCHEMA.to_owned(),
-        );
-        m.insert(
-            "CONTACT_SENSOR_JSON_SCHEMA".to_owned(),
-            CONTACT_SENSOR_JSON_SCHEMA.to_owned(),
-        );
-        m.insert(
-            "CLIMATE_SENSOR_JSON_SCHEMA".to_owned(),
-            CLIMATE_SENSOR_JSON_SCHEMA.to_owned(),
-        );
-        m.insert(
-            "VOICE_PROBABILITY_JSON_SCHEMA".to_owned(),
-            VOICE_PROBABILITY_JSON_SCHEMA.to_owned(),
-        );
-        m
-    })
+pub fn create_foxglove_url(user: &str, url: &str, port: &str, layout_id: &str) -> String {
+    // https://app.foxglove.dev/david-weis/view?ds=foxglove-websocket&ds.url=ws://127.0.0.1:8765/&layoutId=ea22e72c-f654-4743-925a-7143a510d390
+    format!("https://app.foxglove.dev/{user}/view?ds=foxglove-websocket&ds.url=ws://{url}:{port}/&layoutId={layout_id}")
 }
 
 pub async fn start_foxglove_bridge(
-    config: Configuration,
+    config: FoxgloveServerConfiguration,
     host: SocketAddr,
     zenoh_session: Arc<Session>,
 ) -> anyhow::Result<()> {
@@ -247,7 +216,7 @@ async fn start_json_subscriber(
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Configuration {
+pub struct FoxgloveServerConfiguration {
     pub protobuf_subscriptions: Vec<ProtobufSubscription>,
     pub json_subscriptions: Vec<JsonSubscription>,
 }
@@ -270,6 +239,38 @@ pub fn system_time_to_nanos(d: &SystemTime) -> u64 {
     let ns = d.duration_since(UNIX_EPOCH).unwrap().as_nanos();
     assert!(ns <= u64::MAX as u128);
     ns as u64
+}
+
+fn json_schema_table() -> &'static HashMap<String, String> {
+    static INSTANCE: OnceLock<HashMap<String, String>> = OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        let mut m = HashMap::new();
+        m.insert(
+            "GENERIC_JSON_SCHEMA".to_owned(),
+            GENERIC_JSON_SCHEMA.to_owned(),
+        );
+        m.insert(
+            "IKEA_DIMMER_JSON_SCHEMA".to_owned(),
+            IKEA_DIMMER_JSON_SCHEMA.to_owned(),
+        );
+        m.insert(
+            "MOTION_SENSOR_JSON_SCHEMA".to_owned(),
+            MOTION_SENSOR_JSON_SCHEMA.to_owned(),
+        );
+        m.insert(
+            "CONTACT_SENSOR_JSON_SCHEMA".to_owned(),
+            CONTACT_SENSOR_JSON_SCHEMA.to_owned(),
+        );
+        m.insert(
+            "CLIMATE_SENSOR_JSON_SCHEMA".to_owned(),
+            CLIMATE_SENSOR_JSON_SCHEMA.to_owned(),
+        );
+        m.insert(
+            "VOICE_PROBABILITY_JSON_SCHEMA".to_owned(),
+            VOICE_PROBABILITY_JSON_SCHEMA.to_owned(),
+        );
+        m
+    })
 }
 
 #[allow(dead_code)]

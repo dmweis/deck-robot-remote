@@ -42,6 +42,25 @@ pub async fn start_gamepad_reader(
     pub_topic: &str,
     sleep_ms: u64,
 ) -> anyhow::Result<()> {
+    tokio::spawn({
+        let zenoh_session = zenoh_session.clone();
+        let pub_topic = pub_topic.to_owned();
+        async move {
+            while let Err(err) =
+                run_gamepad_reader(zenoh_session.clone(), &pub_topic, sleep_ms).await
+            {
+                error!("Gamepad reader failed with {err:?}");
+            }
+        }
+    });
+    Ok(())
+}
+
+pub async fn run_gamepad_reader(
+    zenoh_session: Arc<Session>,
+    pub_topic: &str,
+    sleep_ms: u64,
+) -> anyhow::Result<()> {
     let gamepad_publisher = zenoh_session
         .declare_publisher(pub_topic.to_owned())
         .res()
