@@ -8,7 +8,7 @@ use std::{
     sync::{Arc, OnceLock},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tracing::info;
+use tracing::{debug, info};
 use zenoh::prelude::r#async::*;
 
 use crate::{error::ErrorWrapper, DESCRIPTOR_POOL};
@@ -101,7 +101,7 @@ async fn start_proto_subscriber_from_descriptor(
                     foxglove_channel.send(time_nanos, &payload).await?;
 
                     if message_counter % 20 == 0 {
-                        info!(
+                        debug!(
                             topic,
                             message_counter, "{} sent {} messages", topic, message_counter
                         );
@@ -198,7 +198,7 @@ async fn start_json_subscriber(
                     foxglove_channel.send(time_nanos, &payload).await?;
 
                     if message_counter % 20 == 0 {
-                        info!(
+                        debug!(
                             topic,
                             message_counter, "{} sent {} messages", topic, message_counter
                         );
