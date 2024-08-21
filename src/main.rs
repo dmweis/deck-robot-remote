@@ -26,6 +26,9 @@ use crate::messages::InputMessage;
 
 const ZENOH_TCP_DISCOVERY_PORT: u16 = 7436;
 
+const HAMILTON_FOXGLOVE_LAYOUT_ID: &str = "0948be25-5808-40db-a1d3-75e7810fe349";
+const HOPPER_FOXGLOVE_LAYOUT_ID: &str = "ea22e72c-f654-4743-925a-7143a510d390";
+
 #[derive(Parser)]
 #[command(author, version)]
 struct Args {
@@ -63,13 +66,14 @@ struct Args {
     #[clap(long, default_value = "david-weis")]
     foxglove_user: String,
 
-    #[clap(long, default_value = "ea22e72c-f654-4743-925a-7143a510d390")]
-    foxglove_layout_id: String,
+    #[clap(long)]
+    foxglove_layout_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Mode {
     Hamilton,
+    Hopper,
 }
 
 #[tokio::main(worker_threads = 2)]
@@ -97,15 +101,25 @@ async fn main() -> anyhow::Result<()> {
             let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
             config
         }
+        Mode::Hopper => {
+            let config = include_str!("../config/hopper_config.yaml");
+            let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
+            config
+        }
     };
 
     start_foxglove_bridge(foxglove_config, args.host, zenoh_session.clone()).await?;
+
+    let layout_id = match args.mode {
+        Mode::Hamilton => HAMILTON_FOXGLOVE_LAYOUT_ID,
+        Mode::Hopper => HOPPER_FOXGLOVE_LAYOUT_ID,
+    };
 
     let foxglove_link = create_foxglove_url(
         &args.foxglove_user,
         &args.host.ip().to_string(),
         &args.host.port().to_string(),
-        &args.foxglove_layout_id,
+        layout_id,
     );
 
     info!("Foxglove link {foxglove_link}");
@@ -187,6 +201,12 @@ async fn start_zenoh_session(args: &Args) -> anyhow::Result<Arc<Session>> {
         match args.mode {
             Mode::Hamilton => {
                 if !peer.host_name.to_lowercase().contains("hamilton") {
+                    // skip others
+                    continue;
+                }
+            }
+            Mode::Hopper => {
+                if !peer.host_name.to_lowercase().contains("hopper") {
                     // skip others
                     continue;
                 }
