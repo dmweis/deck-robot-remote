@@ -1,6 +1,8 @@
 extern crate prost_reflect_build;
 
 fn main() {
+    std::env::set_var("PROTOC", protobuf_src::protoc());
+
     let mut proto_files = get_proto_files("proto/foxglove").unwrap();
     proto_files.extend_from_slice(&get_proto_files("proto/hopper").unwrap());
 
