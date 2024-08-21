@@ -1,18 +1,25 @@
 mod config;
 mod error;
+mod foxglove_server;
 mod gamepad;
 mod messages;
 mod tailscale;
 
+use std::net::SocketAddr;
+
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use error::ErrorWrapper;
+use foxglove_server::{start_foxglove_bridge, Configuration};
 use gamepad::{start_gamepad_reader, start_schema_queryable};
 use tailscale::TailscaleStatus;
 
 use schemars::schema_for;
 use tracing::*;
 use zenoh::{config::Config, prelude::r#async::*};
+
+use once_cell::sync::Lazy;
+use prost_reflect::DescriptorPool;
 
 use crate::messages::InputMessage;
 
@@ -135,13 +142,25 @@ async fn main() -> anyhow::Result<()> {
     );
 
     start_schema_queryable(zenoh_session.clone(), &args.gamepad_topic).await?;
-    let gamepad_future = tokio::spawn(async move {
-        if let Err(error) =
-            start_gamepad_reader(zenoh_session.clone(), &args.gamepad_topic, args.sleep_ms).await
-        {
-            error!("Gamepad reader encountered an error {error:?}");
+    let gamepad_future = tokio::spawn({
+        let zenoh_session = zenoh_session.clone();
+        async move {
+            if let Err(error) =
+                start_gamepad_reader(zenoh_session.clone(), &args.gamepad_topic, args.sleep_ms)
+                    .await
+            {
+                error!("Gamepad reader encountered an error {error:?}");
+            }
         }
     });
+
+    let host: SocketAddr = "127.0.0.1:8765".parse()?;
+
+    // read config
+    let config = include_str!("../config/config.yaml");
+    let config: Configuration = serde_yaml::from_str(config)?;
+
+    start_foxglove_bridge(config, host, zenoh_session.clone()).await?;
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {}
@@ -158,4 +177,22 @@ pub fn setup_tracing(verbosity_level: u8) {
         _ => tracing::level_filters::LevelFilter::TRACE,
     };
     tracing_subscriber::fmt().with_max_level(filter).init();
+}
+
+static FILE_DESCRIPTOR_SET: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/file_descriptor_set.bin"));
+
+static DESCRIPTOR_POOL: Lazy<DescriptorPool> = Lazy::new(|| {
+    DescriptorPool::decode(FILE_DESCRIPTOR_SET).expect("Failed to load file descriptor set")
+});
+
+/// protobuf
+pub mod foxglove {
+    #![allow(non_snake_case)]
+    include!(concat!(env!("OUT_DIR"), "/foxglove.rs"));
+}
+
+pub mod hopper {
+    #![allow(non_snake_case)]
+    include!(concat!(env!("OUT_DIR"), "/hopper.rs"));
 }
