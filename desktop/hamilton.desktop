@@ -1,5 +1,5 @@
 [Desktop Entry]
 Name=Hamilton Remote
-Exec=/home/deck/.cargo/bin/deck-robot-remote
+Exec=/home/deck/.cargo/bin/deck-robot-remote --mode hamilton
 Type=Application
 Terminal=true
