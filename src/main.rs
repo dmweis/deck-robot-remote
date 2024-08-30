@@ -136,20 +136,27 @@ async fn main() -> anyhow::Result<()> {
         // open::with(&foxglove_link, "chrome")?;
 
         // google-chrome --start-fullscreen
-        let _browser = Command::new("/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome")
+        let mut browser = Command::new("/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome")
             .arg(foxglove_link)
             .arg("--kiosk")
             .arg("--noerrdialogs")
-            .arg("--disable-infobars")
+            // .arg("--disable-infobars")
             .arg("--no-first-run")
             .arg("--start-maximized")
             .spawn()?;
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = read_line() => {}
+            _ = browser.wait() => {}
+        };
+    } else {
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = read_line() => {}
+        };
     }
 
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {}
-        _ = read_line() => {}
-    };
     Ok(())
 }
 
