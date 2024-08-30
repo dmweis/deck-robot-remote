@@ -31,6 +31,8 @@ const ZENOH_TCP_DISCOVERY_PORT: u16 = 7436;
 
 const HAMILTON_FOXGLOVE_LAYOUT_ID: &str = "0948be25-5808-40db-a1d3-75e7810fe349";
 const HOPPER_FOXGLOVE_LAYOUT_ID: &str = "ea22e72c-f654-4743-925a-7143a510d390";
+const FLATPAK_CHROME_PATH: &str =
+    "/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome";
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -134,14 +136,10 @@ async fn main() -> anyhow::Result<()> {
     if args.browser {
         // open::that(foxglove_link)?;
         // open::with(&foxglove_link, "chrome")?;
-
-        // google-chrome --start-fullscreen
-        let mut browser = Command::new("/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome")
+        let mut browser_process_handle = Command::new(FLATPAK_CHROME_PATH)
             .arg("--start-fullscreen")
             .arg(foxglove_link)
-            // .arg("--kiosk")
             .arg("--noerrdialogs")
-            // .arg("--disable-infobars")
             .arg("--no-first-run")
             .arg("--start-maximized")
             .spawn()?;
@@ -149,7 +147,9 @@ async fn main() -> anyhow::Result<()> {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {}
             _ = read_line() => {}
-            _ = browser.wait() => {}
+            _ = browser_process_handle.wait() => {
+                info!("Browser process exited");
+            }
         };
     } else {
         tokio::select! {
