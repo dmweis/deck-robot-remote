@@ -6,7 +6,10 @@ mod messages;
 mod tailscale;
 
 use std::{net::SocketAddr, sync::Arc};
-use tokio::io::{self, AsyncBufReadExt};
+use tokio::{
+    io::{self, AsyncBufReadExt},
+    process::Command,
+};
 
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
@@ -130,7 +133,13 @@ async fn main() -> anyhow::Result<()> {
 
     if args.browser {
         // open::that(foxglove_link)?;
-        open::with(foxglove_link, "chrome")?;
+        // open::with(&foxglove_link, "chrome")?;
+
+        // google-chrome --start-fullscreen
+        let _browser = Command::new("/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome")
+            .arg(foxglove_link)
+            .arg("--start-maximized")
+            .spawn()?;
     }
 
     tokio::select! {
