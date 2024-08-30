@@ -130,7 +130,7 @@ async fn main() -> anyhow::Result<()> {
 
     if args.browser {
         // open::that(foxglove_link)?;
-        open::with(foxglove_link, "google-chrome")?;
+        open::with(foxglove_link, "chrome")?;
     }
 
     tokio::select! {
