@@ -137,6 +137,7 @@ async fn main() -> anyhow::Result<()> {
 
         // google-chrome --start-fullscreen
         let mut browser = Command::new("/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome")
+            .arg("--start-fullscreen")
             .arg(foxglove_link)
             // .arg("--kiosk")
             .arg("--noerrdialogs")
