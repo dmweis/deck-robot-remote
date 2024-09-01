@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=Hamilton Remote
+Name=Guppy Remote
 Exec=/home/deck/.cargo/bin/deck-robot-remote --mode guppy
 Type=Application
 Terminal=true
