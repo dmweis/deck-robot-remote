@@ -38,4 +38,6 @@ install-dependencies-steam-deck:
 install-desktop:
 	cargo install --path .
 	cp desktop/hamilton.desktop ~/.local/share/applications/
+	cp desktop/guppy.desktop ~/.local/share/applications/
 	ln -sf ~/.local/share/applications/hamilton.desktop ~/Desktop/hamilton.desktop
+	ln -sf ~/.local/share/applications/guppy.desktop ~/Desktop/guppy.desktop

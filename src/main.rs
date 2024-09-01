@@ -82,6 +82,7 @@ struct Args {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Mode {
     Hamilton,
+    Guppy,
     Hopper,
 }
 
@@ -110,6 +111,11 @@ async fn main() -> anyhow::Result<()> {
             let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
             config
         }
+        Mode::Guppy => {
+            let config = include_str!("../config/hamilton_config.yaml");
+            let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
+            config
+        }
         Mode::Hopper => {
             let config = include_str!("../config/hopper_config.yaml");
             let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
@@ -121,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
 
     let layout_id = match args.mode {
         Mode::Hamilton => HAMILTON_FOXGLOVE_LAYOUT_ID,
+        Mode::Guppy => HAMILTON_FOXGLOVE_LAYOUT_ID,
         Mode::Hopper => HOPPER_FOXGLOVE_LAYOUT_ID,
     };
 
@@ -231,6 +238,12 @@ async fn start_zenoh_session(args: &Args) -> anyhow::Result<Arc<Session>> {
         match args.mode {
             Mode::Hamilton => {
                 if !peer.host_name.to_lowercase().contains("hamilton") {
+                    // skip others
+                    continue;
+                }
+            }
+            Mode::Guppy => {
+                if !peer.host_name.to_lowercase().contains("guppy") {
                     // skip others
                     continue;
                 }
