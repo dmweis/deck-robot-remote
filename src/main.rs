@@ -1,5 +1,4 @@
 mod config;
-mod error;
 mod foxglove_server;
 mod gamepad;
 mod messages;
@@ -13,17 +12,12 @@ use tokio::{
 
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
-use error::ErrorWrapper;
-use foxglove_server::{create_foxglove_url, start_foxglove_bridge, FoxgloveServerConfiguration};
-use gamepad::{start_gamepad_reader, start_schema_queryable};
+use foxglove_server::create_foxglove_url;
+use gamepad::start_gamepad_reader;
 use tailscale::TailscaleStatus;
 
 use schemars::schema_for;
 use tracing::*;
-use zenoh::{config::Config, prelude::r#async::*};
-
-use once_cell::sync::Lazy;
-use prost_reflect::DescriptorPool;
 
 use crate::messages::InputMessage;
 
@@ -43,14 +37,6 @@ struct Args {
     /// The key expression to publish onto.
     #[clap(short, long, default_value = "remote-control/gamepad")]
     gamepad_topic: String,
-
-    /// Endpoints to connect to.
-    #[clap(short, long)]
-    connect: Vec<zenoh_config::EndPoint>,
-
-    /// Endpoints to listen on.
-    #[clap(short, long)]
-    listen: Vec<zenoh_config::EndPoint>,
 
     /// A configuration file.
     #[clap(long)]
@@ -91,39 +77,13 @@ async fn main() -> anyhow::Result<()> {
     let args: Args = Args::parse();
     setup_tracing(args.verbose);
 
-    let zenoh_session = start_zenoh_session(&args).await?;
-
-    info!("Publishing on topic {:?}", args.gamepad_topic);
-
     let schema = schema_for!(InputMessage);
     info!(
         "Message schema:\n{}",
         serde_json::to_string_pretty(&schema)?
     );
 
-    start_schema_queryable(zenoh_session.clone(), &args.gamepad_topic).await?;
-    start_gamepad_reader(zenoh_session.clone(), &args.gamepad_topic, args.sleep_ms).await?;
-
-    // read foxglove config
-    let foxglove_config = match args.mode {
-        Mode::Hamilton => {
-            let config = include_str!("../config/hamilton_config.yaml");
-            let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
-            config
-        }
-        Mode::Guppy => {
-            let config = include_str!("../config/hamilton_config.yaml");
-            let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
-            config
-        }
-        Mode::Hopper => {
-            let config = include_str!("../config/hopper_config.yaml");
-            let config: FoxgloveServerConfiguration = serde_yaml::from_str(config)?;
-            config
-        }
-    };
-
-    start_foxglove_bridge(foxglove_config, args.host, zenoh_session.clone()).await?;
+    start_gamepad_reader(args.sleep_ms).await?;
 
     let layout_id = match args.mode {
         Mode::Hamilton => HAMILTON_FOXGLOVE_LAYOUT_ID,
@@ -182,115 +142,4 @@ pub fn setup_tracing(verbosity_level: u8) {
         _ => tracing::level_filters::LevelFilter::TRACE,
     };
     tracing_subscriber::fmt().with_max_level(filter).init();
-}
-
-static FILE_DESCRIPTOR_SET: &[u8] =
-    include_bytes!(concat!(env!("OUT_DIR"), "/file_descriptor_set.bin"));
-
-static DESCRIPTOR_POOL: Lazy<DescriptorPool> = Lazy::new(|| {
-    DescriptorPool::decode(FILE_DESCRIPTOR_SET).expect("Failed to load file descriptor set")
-});
-
-/// protobuf
-pub mod foxglove {
-    #![allow(non_snake_case)]
-    include!(concat!(env!("OUT_DIR"), "/foxglove.rs"));
-}
-
-pub mod hopper {
-    #![allow(non_snake_case)]
-    include!(concat!(env!("OUT_DIR"), "/hopper.rs"));
-}
-
-async fn start_zenoh_session(args: &Args) -> anyhow::Result<Arc<Session>> {
-    // load config
-    let mut zenoh_config = if let Some(conf_file) = &args.zenoh_config {
-        Config::from_file(conf_file).map_err(ErrorWrapper::ZenohError)?
-    } else {
-        Config::default()
-    };
-    // add arg endpoints
-    if !args.connect.is_empty() {
-        zenoh_config.connect.endpoints.clone_from(&args.connect);
-    }
-    if !args.listen.is_empty() {
-        zenoh_config.listen.endpoints.clone_from(&args.listen);
-    }
-
-    // add tailscale config
-    let tailscale_status = TailscaleStatus::read_from_command().await?;
-
-    // listening address
-    for local_address in &tailscale_status.tailscale_ip_list {
-        let address: std::net::IpAddr = local_address.parse().context("Failed to parse address")?;
-        if !address.is_ipv4() {
-            // skip IPv6 because pain
-            continue;
-        }
-        let tcp = zenoh_config::EndPoint::new("tcp", format!("{}:{}", local_address, 0), "", "")
-            .map_err(ErrorWrapper::ZenohError)?;
-        zenoh_config.listen.endpoints.push(tcp)
-    }
-
-    // peer address
-    for peer in tailscale_status.peers.values() {
-        // select target based on host
-        match args.mode {
-            Mode::Hamilton => {
-                if !peer.host_name.to_lowercase().contains("hamilton") {
-                    // skip others
-                    continue;
-                }
-            }
-            Mode::Guppy => {
-                if !peer.host_name.to_lowercase().contains("guppy") {
-                    // skip others
-                    continue;
-                }
-            }
-            Mode::Hopper => {
-                if !peer.host_name.to_lowercase().contains("hopper") {
-                    // skip others
-                    continue;
-                }
-            }
-        }
-
-        for local_address in &peer.tailscale_ip_list {
-            let address: std::net::IpAddr =
-                local_address.parse().context("Failed to parse address")?;
-            if !address.is_ipv4() {
-                // skip IPv6 because pain
-                continue;
-            }
-            let tcp = zenoh_config::EndPoint::new(
-                "tcp",
-                format!("{}:{}", local_address, ZENOH_TCP_DISCOVERY_PORT),
-                "",
-                "",
-            )
-            .map_err(ErrorWrapper::ZenohError)?;
-            zenoh_config.connect.endpoints.push(tcp)
-        }
-    }
-
-    // log config
-    if let Some(config) = &args.zenoh_config {
-        info!("Using zenoh config {:?}", config);
-    }
-    if !zenoh_config.connect.endpoints.is_empty() {
-        info!("Zenoh connection to {:?}", zenoh_config.connect.endpoints);
-    }
-    if !zenoh_config.listen.endpoints.is_empty() {
-        info!("Zenoh listening on {:?}", zenoh_config.listen.endpoints);
-    }
-
-    debug!("Starting zenoh session");
-    let zenoh_session = zenoh::open(zenoh_config)
-        .res()
-        .await
-        .map_err(ErrorWrapper::ZenohError)?
-        .into_arc();
-
-    Ok(zenoh_session)
 }
