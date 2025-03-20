@@ -1,4 +1,3 @@
-DEB_BUILD_PATH ?= target/debian/zenoh-gamepad_*.deb
 
 
 .PHONY: build

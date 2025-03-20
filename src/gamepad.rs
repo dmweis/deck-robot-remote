@@ -1,53 +1,21 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use gilrs::GilrsBuilder;
-use schemars::schema_for;
+use tokio::net::UdpSocket;
 use tracing::*;
-use zenoh::prelude::r#async::*;
 
-use crate::{
-    error::ErrorWrapper,
-    messages::{Button, InputMessage},
-};
-
-pub async fn start_schema_queryable(
-    zenoh_session: Arc<Session>,
-    pub_topic: &str,
-) -> anyhow::Result<()> {
-    let schema_topic = format!("{}/__schema__", pub_topic);
-
-    let queryable = zenoh_session
-        .declare_queryable(&schema_topic)
-        .res()
-        .await
-        .map_err(ErrorWrapper::ZenohError)?;
-
-    tokio::spawn(async move {
-        while let Ok(query) = queryable.recv_async().await {
-            let schema = schema_for!(InputMessage);
-            if let Ok(schema) = serde_json::to_string(&schema) {
-                if let Ok(key_expr) = KeyExpr::<'static>::from_str(&schema_topic) {
-                    let reply = Ok(Sample::new(key_expr, schema));
-                    _ = query.reply(reply).res().await;
-                }
-            }
-        }
-    });
-
-    Ok(())
-}
+use crate::messages::{Button, InputMessage};
 
 pub async fn start_gamepad_reader(
-    zenoh_session: Arc<Session>,
-    pub_topic: &str,
     sleep_ms: u64,
+    local_address: &str,
+    target_address: &str,
 ) -> anyhow::Result<()> {
     tokio::spawn({
-        let zenoh_session = zenoh_session.clone();
-        let pub_topic = pub_topic.to_owned();
+        let local_address = local_address.to_owned();
+        let target_address = target_address.to_owned();
         async move {
-            while let Err(err) =
-                run_gamepad_reader(zenoh_session.clone(), &pub_topic, sleep_ms).await
+            while let Err(err) = run_gamepad_reader(sleep_ms, &local_address, &target_address).await
             {
                 error!("Gamepad reader failed with {err:?}");
             }
@@ -57,17 +25,13 @@ pub async fn start_gamepad_reader(
 }
 
 pub async fn run_gamepad_reader(
-    zenoh_session: Arc<Session>,
-    pub_topic: &str,
     sleep_ms: u64,
+    local_address: &str,
+    target_address: &str,
 ) -> anyhow::Result<()> {
-    let gamepad_publisher = zenoh_session
-        .declare_publisher(pub_topic.to_owned())
-        .res()
-        .await
-        .map_err(ErrorWrapper::ZenohError)?;
-
     info!("Starting gamepad reader");
+
+    let socket = UdpSocket::bind(local_address).await?;
 
     // gamepad
     let mut gilrs = GilrsBuilder::new()
@@ -153,11 +117,9 @@ pub async fn run_gamepad_reader(
 
         message_data.time = std::time::SystemTime::now().into();
         let json = serde_json::to_string(&message_data)?;
-        gamepad_publisher
-            .put(json)
-            .res()
-            .await
-            .map_err(ErrorWrapper::ZenohError)?;
+        // send over UDP here
+        socket.send_to(json.as_bytes(), target_address).await?;
+
         tokio::time::sleep_until(loop_start + Duration::from_millis(sleep_ms)).await;
     }
 }
