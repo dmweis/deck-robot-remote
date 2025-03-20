@@ -4,13 +4,12 @@ mod gamepad;
 mod messages;
 mod tailscale;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 use tokio::{
     io::{self, AsyncBufReadExt},
     process::Command,
 };
 
-use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use foxglove_server::create_foxglove_url;
 use gamepad::start_gamepad_reader;
@@ -21,17 +20,14 @@ use tracing::*;
 
 use crate::messages::InputMessage;
 
-const ZENOH_TCP_DISCOVERY_PORT: u16 = 7436;
-
-const HAMILTON_FOXGLOVE_LAYOUT_ID: &str = "0948be25-5808-40db-a1d3-75e7810fe349";
-const HOPPER_FOXGLOVE_LAYOUT_ID: &str = "ea22e72c-f654-4743-925a-7143a510d390";
+const BIPED_FOXGLOVE_LAYOUT_ID: &str = "0948be25-5808-40db-a1d3-75e7810fe349";
 const FLATPAK_CHROME_PATH: &str =
     "/var/lib/flatpak/app/com.google.Chrome/x86_64/stable/active/export/bin/com.google.Chrome";
 
 #[derive(Parser)]
 #[command(author, version)]
 struct Args {
-    #[clap(short, long, default_value = "hamilton")]
+    #[clap(short, long, default_value = "biped")]
     mode: Mode,
 
     /// The key expression to publish onto.
@@ -67,9 +63,7 @@ struct Args {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Mode {
-    Hamilton,
-    Guppy,
-    Hopper,
+    Biped,
 }
 
 #[tokio::main(worker_threads = 2)]
@@ -83,12 +77,20 @@ async fn main() -> anyhow::Result<()> {
         serde_json::to_string_pretty(&schema)?
     );
 
-    start_gamepad_reader(args.sleep_ms).await?;
+    let tailscale_status = TailscaleStatus::read_from_command().await?;
+
+    let local_ip = tailscale_status.get_local_ipv4_address()?;
+    let device_ip = tailscale_status
+        .get_ipv4_address_for_device("hopper")?
+        .expect("Failed to find device");
+
+    let local_address = format!("{local_ip}");
+    let target_address = format!("{device_ip}:51337");
+
+    start_gamepad_reader(args.sleep_ms, &local_address, &target_address).await?;
 
     let layout_id = match args.mode {
-        Mode::Hamilton => HAMILTON_FOXGLOVE_LAYOUT_ID,
-        Mode::Guppy => HAMILTON_FOXGLOVE_LAYOUT_ID,
-        Mode::Hopper => HOPPER_FOXGLOVE_LAYOUT_ID,
+        Mode::Biped => BIPED_FOXGLOVE_LAYOUT_ID,
     };
 
     let foxglove_link = create_foxglove_url(

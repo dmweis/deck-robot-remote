@@ -1,15 +1,22 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashMap, time::Duration};
 
 use gilrs::GilrsBuilder;
-use schemars::schema_for;
+use tokio::net::UdpSocket;
 use tracing::*;
 
 use crate::messages::{Button, InputMessage};
 
-pub async fn start_gamepad_reader(sleep_ms: u64) -> anyhow::Result<()> {
+pub async fn start_gamepad_reader(
+    sleep_ms: u64,
+    local_address: &str,
+    target_address: &str,
+) -> anyhow::Result<()> {
     tokio::spawn({
+        let local_address = local_address.to_owned();
+        let target_address = target_address.to_owned();
         async move {
-            while let Err(err) = run_gamepad_reader(sleep_ms).await {
+            while let Err(err) = run_gamepad_reader(sleep_ms, &local_address, &target_address).await
+            {
                 error!("Gamepad reader failed with {err:?}");
             }
         }
@@ -17,8 +24,14 @@ pub async fn start_gamepad_reader(sleep_ms: u64) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub async fn run_gamepad_reader(sleep_ms: u64) -> anyhow::Result<()> {
+pub async fn run_gamepad_reader(
+    sleep_ms: u64,
+    local_address: &str,
+    target_address: &str,
+) -> anyhow::Result<()> {
     info!("Starting gamepad reader");
+
+    let socket = UdpSocket::bind(local_address).await?;
 
     // gamepad
     let mut gilrs = GilrsBuilder::new()
@@ -105,6 +118,8 @@ pub async fn run_gamepad_reader(sleep_ms: u64) -> anyhow::Result<()> {
         message_data.time = std::time::SystemTime::now().into();
         let json = serde_json::to_string(&message_data)?;
         // send over UDP here
+        socket.send_to(json.as_bytes(), target_address).await?;
+
         tokio::time::sleep_until(loop_start + Duration::from_millis(sleep_ms)).await;
     }
 }
